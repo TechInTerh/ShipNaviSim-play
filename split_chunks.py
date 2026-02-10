@@ -1,7 +1,7 @@
 import glob
 import polars as pl
 from datetime import timedelta
-
+import datetime
 # Columns: SHIP_ID;MMSI;IMO;LAT;LON;TIMESTAMP_UTC;STATUS;HEADING;COURSE;SPEED_KNOTSX10
 data_path = "./raw_data"
 files = glob.glob(f"{data_path}/*Positions*.csv")
@@ -10,7 +10,7 @@ files = sorted(files)
 SHIP_ID_COL = "SHIP_ID"
 TIME_COL = "TIMESTAMP_UTC"
 
-def seperate_chunks(df, time_theshold, minimum_sample_count):
+def seperate_chunks(df : pl.DataFrame, time_theshold : datetime.timedelta, minimum_sample_count : int):
     df = df.lazy()
     df = df.sort([SHIP_ID_COL, TIME_COL])
 
@@ -20,7 +20,9 @@ def seperate_chunks(df, time_theshold, minimum_sample_count):
         pl.col(SHIP_ID_COL).diff().alias('ship_id_diff')
     ])
     
-    # Create a chunk_id column
+    # Create a chunk_id column if
+    # - Different ship ID
+    # - A seperation threshold of at least 1800 seconds (30 minutes)
     df = df.with_columns([
         pl.when((pl.col('time_diff') > time_theshold) | (pl.col('ship_id_diff') != 0))
         .then(1)

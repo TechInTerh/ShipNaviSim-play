@@ -57,7 +57,7 @@ class ShipEnvironment(gym.Env):
         neighbor_obs_shape = (self.n_neighbor_agents, self.observation_history_length + 1, self.features_per_agent)
 
         if self.normalize_xy:
-            obs_low = np.array([-1, -1, 0, 0], dtype=np.float32)
+            obs_low = np.array([-1, -1, 0, 0], dtype=np.float32) # x, y, speed, heading
             obs_high = np.array([1, 1, 1000, 2*np.pi], dtype=np.float32)
         else:
             obs_low = np.array([0, 0, 0, 0], dtype=np.float32)
@@ -603,6 +603,7 @@ class ShipEnvironment(gym.Env):
         return self.current_obs    
 
     def _get_agent_observation(self, trajectory, time, target_timestamp):
+
         obs = []
         # Find the index of the target timestamp or the nearest earlier timestamp        
         low_t = target_timestamp - self.observation_history_length*self.second_perts             
@@ -637,6 +638,14 @@ class ShipEnvironment(gym.Env):
         return [self.padded_val] * (self.observation_history_length + 1)
     
     def infer_action_from_trajectory(self, timestep):       
+        """Generate next action for the agent following the self.ship_trajectories.
+
+        Arguments:
+            timestep -- _description_
+
+        Returns:
+            _description_
+        """        
         current_state = self.ship_trajectories[self.ego_pos][timestep] 
         next_state = self.ship_trajectories[self.ego_pos][timestep + 1]
 
@@ -754,6 +763,7 @@ def chunk_to_traj(chunk: pl.DataFrame, interpol_interval: timedelta, region_of_i
     # Find the start and end times, rounded to the nearest interpol_interval
     # start_time will uses ceil and end_time uses floor due to interpolation
     start_time = df['time'].min().replace(microsecond=0)
+    # Can delete the first message by doing that
     start_time = start_time + timedelta(seconds=interpol_seconds - start_time.second % interpol_seconds)            
     end_time = df['time'].max().replace(microsecond=0)
     end_time = end_time - timedelta(seconds=end_time.second % interpol_seconds)    
@@ -770,7 +780,10 @@ def chunk_to_traj(chunk: pl.DataFrame, interpol_interval: timedelta, region_of_i
     x_np = np.apply_along_axis(lambda x: lon_to_xpos(x, origin_lon, origin_lat), 0, df['lon'].to_numpy())
     speed_np = np.apply_along_axis(knots_to_ms, 0, df['speed'].to_numpy())
     heading_np = np.apply_along_axis(heading_to_2d_radians, 0, df['heading'].to_numpy())    
+    # Arrange time in case of missing message.
+    # Example : 10,30,60,90 -> 10, 20, 30, 40, 50, 60, 70, 80, 90
     t_np = np.arange(start_time.timestamp(), end_time.timestamp() + interpol_seconds, interpol_seconds, dtype=np.int64)
+    # Interpolate the trajectory by using arranged time.
     traj_y = np.interp(t_np, original_time_np, y_np)    
     traj_x = np.interp(t_np, original_time_np, x_np)            
     traj_speed = np.interp(t_np, original_time_np, speed_np)

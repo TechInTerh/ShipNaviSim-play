@@ -7,7 +7,10 @@ import numpy as np
 import gymnasium as gym
 import minari
 
-def replay_ship_env(id_ship, env, render = False):        
+def replay_ship_env(id_ship, env : ShipEnvironment, render = False):        
+    """
+    Reset the environmenet and run the simulation
+    """
     obs, info = env.reset(seed=42, options = {'ego_pos': id_ship})
     actions = info['actions']
     if(actions is None):
@@ -122,12 +125,15 @@ if __name__ == '__main__':
     status_filter = (pl.col("STATUS") == 0)
     # Combine all filters
     all_filters = geo_filters + [time_filter, heading_filter, status_filter]
+
+    # Filter for the correct area, excluding null and '511' heading with the corrent status as well as outlier hours (>24 or <0)
     df = df.filter(*all_filters)           
     print(df) 
     threshold = timedelta(minutes=30)
     inter_pol = timedelta(seconds=10)
-    num_samples = 5
-    chunks = seperate_chunks(df, threshold, num_samples)    
+    min_num_samples = 5
+
+    chunks = seperate_chunks(df, threshold, min_num_samples)    
     print(chunks.describe())    
     chunks = chunks.sort('start_time')
     print(chunks[:10])
@@ -141,24 +147,28 @@ if __name__ == '__main__':
         vessel_ids.append(chunks[j]["SHIP_ID"][0])
         trajs.append(traj)        
         times.append(time)
-        tw_lst.append((times[-1][0], times[-1][-1]))        
+        # Min time, Max time
+        tw_lst.append((times[-1][0], times[-1][-1]))  
+    # For each trajectories, find each other trajtories that overlaps (time).
     overlap_idx = utils.find_overlapping_intervals(tw_lst)
     
     #Create environment
-    max_size = max([len(val) for val in overlap_idx])   
+    max_size = max([len(val) for val in overlap_idx])  #Useless  
     env = ShipEnvironment(trajs, times, overlap_idx, region_of_interest, n_neighbor_agents=10) 
     
     #Render 
-    env = gym.wrappers.RecordVideo(env, "tmp/video-1.mp4")
+    env = gym.wrappers.RecordVideo(env, "videos/") # caution : The output is a folder lol
     env.metadata['render_fps'] = 10    
     replay_ship_env(id_ship=0, env=env, render=True)    
     
     #Create minari dataset for IL
     # Uncomment for creating offline dataset. Note that, we only need to create dataset once.
-    create_minari_dataset(env, dataset_name="Maritime-Expert-v1",num_ships=num_ships)
+    name_dataset = "Maritime-Expert-v1"
+    if name_dataset not in minari.list_local_datasets().keys():
+        create_minari_dataset(env, dataset_name=name_dataset,num_ships=num_ships)
     
     #Load dataset 
-    dataset = minari.load_dataset("Maritime-Expert-v1")
+    dataset = minari.load_dataset(name_dataset)
 
     for episode_data in dataset.iterate_episodes():
         observations = episode_data.observations
