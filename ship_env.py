@@ -124,7 +124,7 @@ class ShipEnvironment(gym.Env):
         self.max_dy = 0
         self.count_dx = []
         # Pygame initialization
-        self.render_mode = "rgb_array1"
+        self.render_mode = "rgb_array"
         pygame.init()
         self.screen_width = 1500
         self.screen_height = 1500
