@@ -9,7 +9,7 @@ from collections import deque
 from pygame import gfxdraw
 
 class ShipEnvironment(gym.Env):
-    def __init__(self, ship_trajectories, ship_times, overlap_idx, region_of_interest,
+    def __init__(self, ship_trajectories: list, ship_times: list, overlap_idx, region_of_interest,
                  ego_pos: int = 0, observation_history_length: int = 10, n_neighbor_agents: int = 5, render_histL: int = 1000,
                  normalize_xy: bool = False, max_steps: int = 1000, second_perts = 10, use_time_fea=False,
                  drop_neighbor=False, use_dis_fea=False, use_drift_fea=False, use_FoR = False, scale_act=False):
