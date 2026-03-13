@@ -171,3 +171,4 @@ cython_debug/
 videos/
 *.swp
 exp_stats_0to24.csv
+ckpts/
